@@ -38,10 +38,6 @@ for week in range(1, 2):
     #remove unneccessary data and rows THIS IS NOT WORKING PROPERLY
     filtered_plays = plays.query('playNullifiedByPenalty == False and qbKneel == 0 and qbSpike != True')
 
-    print(filtered_plays.head())  # Inspect the filtered DataFrame
-    print(len(filtered_plays))    # Check how many rows match the conditions
-
-
     #plays.csv -> playsNullifiedByPenalty, offensiveFormation, receiverAlignment, passResult, qbSpike, qbKneel
     #NO QB KNEELS, NO QB SPIKES, NO PENALTY PLAYS
 

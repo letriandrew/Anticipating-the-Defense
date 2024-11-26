@@ -10,8 +10,15 @@ plays = plays[[
 ]]
 
 
+#remove unneccessary data and rows THIS IS NOT WORKING PROPERLY
+filtered_plays = plays[
+    (plays['playNullifiedByPenalty'] == 'N') &
+    (plays['qbKneel'] == 0) &
+    (plays['qbSpike'] != True)
+]
+
 #combine week 1 to 9 and flip plays in the left direction
-for week in range(1, 2):
+for week in range(1, 10):
     print(f"Augmenting Week {week}")
     tracking = pd.read_csv(f'data/tracking_week_{week}.csv')
 
@@ -35,19 +42,16 @@ for week in range(1, 2):
     #make sure nflid is not a floatvalue
     tracking['nflId'] = tracking['nflId'].fillna(0).astype(int)
 
-    #remove unneccessary data and rows THIS IS NOT WORKING PROPERLY
-    filtered_plays = plays.query('playNullifiedByPenalty == False and qbKneel == 0 and qbSpike != True')
-
     #plays.csv -> playsNullifiedByPenalty, offensiveFormation, receiverAlignment, passResult, qbSpike, qbKneel
     #NO QB KNEELS, NO QB SPIKES, NO PENALTY PLAYS
 
     #merge tracking data with players and plays
     merged_data = tracking.merge(players, on='nflId', how='left')
 
-    merged_data = merged_data.merge(plays, on=['gameId', 'playId'], how='left')
+    merged_data = merged_data.merge(filtered_plays, on=['gameId', 'playId'], how='left')
 
     #save to csv file
-    merged_data.to_csv(f'data/processed/final_tracking_week_{week}_3.csv', index=False)
+    merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)
 
 
     print(f"Week {week} processing complete.")
@@ -55,4 +59,4 @@ for week in range(1, 2):
 
 print("Data processing and merging complete.")
 
-#expected points
+#expected points = metric to train for positive actions

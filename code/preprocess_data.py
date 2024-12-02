@@ -29,12 +29,13 @@ for week in range(1, 10):
     tracking.loc[tracking['playDirection'] == 'left', 'dir'] = 360 - tracking['dir']
 
     #edge cases to make sure we are not getting plays that begin in the endzone because that's impossible
-    tracking.loc[tracking['x'] > 111, 'x'] = 111
-    tracking.loc[tracking['x'] < 9, 'x'] = 9
+    #tracking.loc[tracking['x'] > 111, 'x'] = 111
+    #tracking.loc[tracking['x'] < 9, 'x'] = 9
+    #BUT WHAT ABOUT DEFENSIVE PLAYERS PLAYING THE ENDZONE... comment for now...
 
     #edge cases for above but for the vertical positions (y)
-    tracking.loc[tracking['y'] >= 53.3, 'y'] = 53.2
-    tracking.loc[tracking['y'] < 0, 'y'] = 0
+    #tracking.loc[tracking['y'] >= 53.3, 'y'] = 53.2
+    #tracking.loc[tracking['y'] < 0, 'y'] = 0
 
     #new column to track week
     tracking['week'] = week

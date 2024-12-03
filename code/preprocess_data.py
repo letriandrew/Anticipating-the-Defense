@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import sys
 
 players = pd.read_csv('data/players.csv')
 players = players[['nflId', 'position']]
@@ -9,16 +10,33 @@ plays = plays[[
     'gameId', 'playId', 'playDescription', 'quarter', 'down', 'yardsToGo', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'playNullifiedByPenalty', 'expectedPoints', 'offenseFormation', 'receiverAlignment', 'qbSpike', 'qbKneel', 'passResult', 'yardlineNumber', 'gameClock', 'playClockAtSnap', 'prePenaltyYardsGained', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak'
 ]]
 
+# distinguish between plays with pre-play MOVEMENT (not just motion) and those without 
+player_play = pd.read_csv('data/player_play.csv')
+player_play = player_play[['gameId', 'playId', 'nflId', 'inMotionAtBallSnap', 'shiftSinceLineset', 'motionSinceLineset']]
 
-#remove unneccessary data and rows THIS IS NOT WORKING PROPERLY
+player_play.to_csv('data/processed/test')
+
+# filter rows where any columns 'inMotionAtBallSnap', 'shiftSinceLineset', or 'motionSinceLineset' are True
+movement_plays = player_play[
+    (player_play['inMotionAtBallSnap'] == True) | 
+    (player_play['shiftSinceLineset'] == True) | 
+    (player_play['motionSinceLineset'] == True)
+]
+
+movement_plays.to_csv('data/processed/movement_player_plays.csv')
+
+
+#remove unneccessary data and rows 
 filtered_plays = plays[
     (plays['playNullifiedByPenalty'] == 'N') &
     (plays['qbKneel'] == 0) &
     (plays['qbSpike'] != True)
 ]
 
+# NOTE = NO QB KNEELS, NO QB SPIKES, NO PENALTY PLAYS
+
 #combine week 1 to 9 and flip plays in the left direction
-for week in range(1, 10):
+for week in range(1, 2):
     print(f"Augmenting Week {week}")
     tracking = pd.read_csv(f'data/tracking_week_{week}.csv')
 
@@ -43,9 +61,6 @@ for week in range(1, 10):
     #make sure nflid is not a floatvalue
     tracking['nflId'] = tracking['nflId'].fillna(0).astype(int)
 
-    #plays.csv -> playsNullifiedByPenalty, offensiveFormation, receiverAlignment, passResult, qbSpike, qbKneel
-    #NO QB KNEELS, NO QB SPIKES, NO PENALTY PLAYS
-
     #merge tracking data with players and plays
     merged_data = tracking.merge(players, on='nflId', how='left')
 
@@ -57,7 +72,5 @@ for week in range(1, 10):
 
     print(f"Week {week} processing complete.")
 
-
 print("Data processing and merging complete.")
 
-#expected points = metric to train for positive actions

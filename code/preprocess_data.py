@@ -7,14 +7,12 @@ players = players[['nflId', 'position']]
 
 plays = pd.read_csv('data/plays.csv')
 plays = plays[[
-    'gameId', 'playId', 'playDescription', 'quarter', 'down', 'yardsToGo', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'playNullifiedByPenalty', 'expectedPoints', 'offenseFormation', 'receiverAlignment', 'qbSpike', 'qbKneel', 'passResult', 'yardlineNumber', 'gameClock', 'playClockAtSnap', 'prePenaltyYardsGained', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak'
+    'gameId', 'playId', 'playDescription', 'quarter', 'down', 'yardsToGo', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'offenseFormation', 'receiverAlignment', 'qbSpike', 'qbKneel', 'passResult', 'yardlineNumber', 'gameClock', 'playClockAtSnap', 'prePenaltyYardsGained', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak'
 ]]
 
 # distinguish between plays with pre-play MOVEMENT (not just motion) and those without 
 player_play = pd.read_csv('data/player_play.csv')
 player_play = player_play[['gameId', 'playId', 'nflId', 'inMotionAtBallSnap', 'shiftSinceLineset', 'motionSinceLineset']]
-
-player_play.to_csv('data/processed/test')
 
 # filter rows where any columns 'inMotionAtBallSnap', 'shiftSinceLineset', or 'motionSinceLineset' are True
 movement_plays = player_play[
@@ -65,6 +63,10 @@ for week in range(1, 2):
     merged_data = tracking.merge(players, on='nflId', how='left')
 
     merged_data = merged_data.merge(filtered_plays, on=['gameId', 'playId'], how='left')
+    
+    merged_data['play_success'] = False
+
+    merged_data.loc[merged_data['expectedPointsAdded'] > 0 , 'play_success'] = True
 
     #save to csv file
     merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)

@@ -7,7 +7,7 @@ players = players[['nflId', 'position']]
 
 plays = pd.read_csv('data/plays.csv')
 plays = plays[[
-    'gameId', 'playId', 'playDescription', 'quarter', 'down', 'yardsToGo', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'offenseFormation', 'receiverAlignment', 'qbSpike', 'qbKneel', 'passResult', 'yardlineNumber', 'gameClock', 'playClockAtSnap', 'prePenaltyYardsGained', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak'
+    'gameId', 'playId', 'playDescription', 'quarter', 'down', 'yardsToGo', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'qbSpike', 'qbKneel', 'passResult', 'pff_runConceptPrimary', 'yardlineNumber', 'absoluteYardlineNumber', 'gameClock', 'playClockAtSnap', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak'
 ]]
 
 # distinguish between plays with pre-play MOVEMENT (not just motion) and those without 
@@ -28,8 +28,12 @@ movement_plays = player_play[
 filtered_plays = plays[
     (plays['playNullifiedByPenalty'] == 'N') &
     (plays['qbKneel'] == 0) &
-    (plays['qbSpike'] != True)
+    (plays['qbSpike'] != True) &
+    (plays['qbSneak'] != True)
 ]
+
+#remove columns we don't need anymore since we filtered out above parameters
+filtered_plays = filtered_plays.drop(columns=['playNullifiedByPenalty', 'qbKneel', 'qbSpike', 'qbSneak'])
 
 # NOTE = NO QB KNEELS, NO QB SPIKES, NO PENALTY PLAYS
 
@@ -81,7 +85,7 @@ for week in range(1, 2):
     merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'qbSpike', 'qbKneel', 'qbSneak'])
 
     #save to csv file
-    merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)
+    merged_data.to_csv(f'data/processed/ffinal_tracking_week_{week}.csv', index=False)
 
 
     print(f"Week {week} processing complete.")

@@ -7,13 +7,17 @@ players = players[['nflId', 'position']]
 
 plays = pd.read_csv('data/plays.csv')
 plays = plays[[
-    'gameId', 'playId', 'playDescription', 'quarter', 'down', 'yardsToGo', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'qbSpike', 'qbKneel', 'passResult', 'pff_runConceptPrimary', 'yardlineNumber', 'absoluteYardlineNumber', 'gameClock', 'playClockAtSnap', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak'
+    'gameId', 'playId', 'playDescription', 'yardsToGo', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'qbSpike', 'qbKneel', 'pff_runConceptPrimary', 'absoluteYardlineNumber', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak', 'timeToThrow', 'targetX', 'targetY', 'offenseFormation', 'receiverAlignment', 'pff_passCoverage', 'pff_manZone', 'pff_runPassOption', 'timeInTackleBox', 'timeToSack', 'passTippedAtLine', 'unblockedPressure'
 ]]
+
+#columns removed = 'playDescription, 'quarter', 'down', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'passResult',
 
 # distinguish between plays with pre-play MOVEMENT (not just motion) and those without 
 player_play = pd.read_csv('data/player_play.csv')
-player_play = player_play[['gameId', 'playId', 'nflId', 'inMotionAtBallSnap', 'shiftSinceLineset', 'motionSinceLineset']]
+player_play = player_play[['gameId', 'playId', 'nflId']]
+#player_play = player_play[['gameId', 'playId', 'nflId', 'inMotionAtBallSnap', 'shiftSinceLineset', 'motionSinceLineset']]
 
+"""
 # filter rows where any columns 'inMotionAtBallSnap', 'shiftSinceLineset', or 'motionSinceLineset' are True
 movement_plays = player_play[
     (player_play['inMotionAtBallSnap'] == True) | 
@@ -22,7 +26,7 @@ movement_plays = player_play[
 ]
 
 #movement_plays.to_csv('data/processed/movement_player_plays.csv')
-
+"""
 
 #remove unneccessary data and rows 
 filtered_plays = plays[
@@ -81,11 +85,18 @@ for week in range(1, 2):
 
     merged_data.loc[merged_data['position'].isin(defensive_positions), 'team_side'] = 'defense'
 
+    #Keep only rows where 'pff_runConceptPrimary' is 'NA' AKA pass plays only
+    merged_data = merged_data[merged_data['pff_runConceptPrimary'].isna()]
+
+    merged_data = merged_data[merged_data['pff_runPassOption'] == 0]
+
+    #merged_data['yardsToEndzone'] = 120 - absoluteyardline BUT we didnt account for field flipping did we???
+
     #remove headway 
-    merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'qbSpike', 'qbKneel', 'qbSneak'])
+    merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'position', 'pff_runConceptPrimary', 'pff_runPassOption'])
 
     #save to csv file
-    merged_data.to_csv(f'data/processed/ffinal_tracking_week_{week}.csv', index=False)
+    merged_data.to_csv(f'data/processed/FFfinal_tracking_week_{week}.csv', index=False)
 
 
     print(f"Week {week} processing complete.")

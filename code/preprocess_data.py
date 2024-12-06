@@ -21,7 +21,7 @@ movement_plays = player_play[
     (player_play['motionSinceLineset'] == True)
 ]
 
-movement_plays.to_csv('data/processed/movement_player_plays.csv')
+#movement_plays.to_csv('data/processed/movement_player_plays.csv')
 
 
 #remove unneccessary data and rows 
@@ -67,6 +67,18 @@ for week in range(1, 2):
     merged_data['play_success'] = False
 
     merged_data.loc[merged_data['expectedPointsAdded'] > 0 , 'play_success'] = True
+
+    offensive_positions = ['QB', 'RB', 'TE', 'WR', 'FB', 'T', 'G', 'C']
+    defensive_positions = ['DE', 'DT', 'SS', 'OLB', 'ILB', 'NT', 'MLB', 'LB', 'FS', 'DB', 'CB']
+
+    merged_data['team_side'] = 'NaN'
+
+    merged_data.loc[merged_data['position'].isin(offensive_positions), 'team_side'] = 'offense'
+
+    merged_data.loc[merged_data['position'].isin(defensive_positions), 'team_side'] = 'defense'
+
+    #remove headway 
+    merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'qbSpike', 'qbKneel', 'qbSneak'])
 
     #save to csv file
     merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)

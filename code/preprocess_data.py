@@ -72,6 +72,7 @@ for week in range(1, 2):
 
     merged_data = merged_data.merge(filtered_plays, on=['gameId', 'playId'], how='left')
     
+    #define what is "successful" using EPA
     merged_data['play_success'] = False
 
     merged_data.loc[merged_data['expectedPointsAdded'] > 0 , 'play_success'] = True
@@ -79,24 +80,35 @@ for week in range(1, 2):
     offensive_positions = ['QB', 'RB', 'TE', 'WR', 'FB', 'T', 'G', 'C']
     defensive_positions = ['DE', 'DT', 'SS', 'OLB', 'ILB', 'NT', 'MLB', 'LB', 'FS', 'DB', 'CB']
 
+    #distinguish offense, defense players while leaving ball as NaN
     merged_data['team_side'] = 'NaN'
 
     merged_data.loc[merged_data['position'].isin(offensive_positions), 'team_side'] = 'offense'
 
     merged_data.loc[merged_data['position'].isin(defensive_positions), 'team_side'] = 'defense'
 
-    #Keep only rows where 'pff_runConceptPrimary' is 'NA' AKA pass plays only
+    #keep only rows where 'pff_runConceptPrimary' is 'NA' AKA pass plays only
     merged_data = merged_data[merged_data['pff_runConceptPrimary'].isna()]
 
+    #keep only hard pass plays no RPO
     merged_data = merged_data[merged_data['pff_runPassOption'] == 0]
 
-    #merged_data['yardsToEndzone'] = 120 - absoluteyardline BUT we didnt account for field flipping did we???
+    #initialize the field length to the end zone as 100 yards
+    merged_data['yardsToEndzone'] = 100.0
+
+    #adjust yardage for plays going "left"
+    merged_data.loc[merged_data['playDirection'] == 'left', 'yardsToEndzone'] = \
+        merged_data.loc[merged_data['playDirection'] == 'left', 'absoluteYardlineNumber'] - 10.0
+
+    #adjust yardage for plays going "right"
+    merged_data.loc[merged_data['playDirection'] == 'right', 'yardsToEndzone'] = \
+        110.0 - merged_data.loc[merged_data['playDirection'] == 'right', 'absoluteYardlineNumber']
 
     #remove headway 
     merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'position', 'pff_runConceptPrimary', 'pff_runPassOption'])
 
     #save to csv file
-    merged_data.to_csv(f'data/processed/FFfinal_tracking_week_{week}.csv', index=False)
+    merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)
 
 
     print(f"Week {week} processing complete.")

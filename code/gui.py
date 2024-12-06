@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 import numpy as np
 from pathlib import Path
 import sys
-from scipy.spatial import Voronoi, voronoi_plot_2d
 
 ## INIT #########################################################################################
 #################################################################################################

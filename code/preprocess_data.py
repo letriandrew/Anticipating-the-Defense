@@ -7,7 +7,7 @@ players = players[['nflId', 'position']]
 
 plays = pd.read_csv('data/plays.csv')
 plays = plays[[
-    'gameId', 'playId', 'playDescription', 'yardsToGo', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'qbSpike', 'qbKneel', 'pff_runConceptPrimary', 'absoluteYardlineNumber', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak', 'timeToThrow', 'targetX', 'targetY', 'offenseFormation', 'receiverAlignment', 'pff_passCoverage', 'pff_manZone', 'pff_runPassOption', 'timeInTackleBox', 'timeToSack', 'passTippedAtLine', 'unblockedPressure'
+    'gameId', 'playId', 'playDescription', 'yardsToGo', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'qbSpike', 'qbKneel', 'pff_runConceptPrimary', 'absoluteYardlineNumber', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak', 'timeToThrow', 'targetX', 'targetY', 'offenseFormation', 'receiverAlignment', 'pff_passCoverage', 'pff_manZone', 'pff_runPassOption', 'timeInTackleBox', 'timeToSack', 'passTippedAtLine', 'unblockedPressure', 'rushLocationType'
 ]]
 
 #columns removed = 'playDescription, 'quarter', 'down', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'passResult',
@@ -103,9 +103,11 @@ for week in range(1, 2):
     #adjust yardage for plays going "right"
     merged_data.loc[merged_data['playDirection'] == 'right', 'yardsToEndzone'] = \
         110.0 - merged_data.loc[merged_data['playDirection'] == 'right', 'absoluteYardlineNumber']
+    
+    merged_data = merged_data[merged_data['rushLocationType'].isna()]
 
     #remove headway 
-    merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'position', 'pff_runConceptPrimary', 'pff_runPassOption'])
+    merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'position', 'pff_runConceptPrimary', 'pff_runPassOption', 'rushLocationType'])
 
     #save to csv file
     merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)

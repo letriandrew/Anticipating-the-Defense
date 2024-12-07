@@ -20,7 +20,7 @@ plays = pd.read_csv(abs_path+'/data/plays.csv')
 player_play = pd.read_csv(abs_path+'/data/player_play.csv') #play metadata
 
 
-week1 = pd.read_csv(abs_path+'/data/tracking_week_1.csv')
+week1 = pd.read_csv(abs_path+'/data/processed/final_tracking_week_1.csv')
 # Filter plays to only include gameId values that are in week1
 plays_filtered_gameId = plays[plays['gameId'].isin(week1['gameId'])]
 plays_f = pd.merge(games, plays_filtered_gameId, how="inner", on="gameId")
@@ -97,6 +97,7 @@ def store_play(games,tracking_df,play_df,players,gameId,playId, idx):
 if __name__ == "__main__":
     length = len(plays_f["gameId"])
     print(f"Total of {length} plays to iterate")
+    start_time = time.time()
     try:
         week_string = "week1/"
         final_directory = abs_path + "/code/parsed_data/" + week_string
@@ -127,7 +128,9 @@ if __name__ == "__main__":
         print("Program crashed while printing:", error)
         exit()
     print(f"{length}/{length}",f"{length/length*100:.3f}","percent complete         \r",end="")
-    print(f"\nCompleted all {length} plays")
+    end_time = time.time()
+    print(f"\nTask took {(end_time-start_time):.3f} seconds")
+    print(f"Completed all {length} plays")
 
 # do it per frame, per game, per week
 # 1/-1 on based on team

@@ -13,21 +13,16 @@ import time
 abs_path = str(Path(__file__).parent.parent)
 sys.path.insert(0, abs_path)
 
-# read csv and join
-games = pd.read_csv(abs_path+'/data/games.csv')
-players = pd.read_csv(abs_path+'/data/players.csv').drop("displayName",axis=1)
-plays = pd.read_csv(abs_path+'/data/plays.csv')
-player_play = pd.read_csv(abs_path+'/data/player_play.csv') #play metadata
-
-
+# filtered week play from preprocess_data.py
 week1 = pd.read_csv(abs_path+'/data/processed/final_tracking_week_1.csv')
-# Filter plays to only include gameId values that are in week1
-plays_filtered_gameId = plays[plays['gameId'].isin(week1['gameId'])]
-plays_f = pd.merge(games, plays_filtered_gameId, how="inner", on="gameId")
 
+# nflId is playerId
+
+# grab unique gameId playId pairs
 gameid_playid_arr = []
-for idx in range (0, len(plays_f["gameId"])):
-    gameid_playid_arr.append([int(plays_f["gameId"][idx]), int(plays_f["playId"][idx])])
+for idx in range (0, len(week1["gameId"])):
+    if [int(week1["gameId"][idx]), int(week1["playId"][idx])] not in gameid_playid_arr:
+        gameid_playid_arr.append([int(week1["gameId"][idx]), int(week1["playId"][idx])])
 
 ## FUNCTIONS ####################################################################################
 #################################################################################################
@@ -42,10 +37,11 @@ def create_grid():
     arr = [[0 for i in range(w)] for j in range(h)]
     return arr
 
-def store_play(games,tracking_df,play_df,players,gameId,playId, idx):
-    tracking_players_df = pd.merge(tracking_df,players,how="left",on = "nflId")
-    selected_tracking_df = tracking_players_df[(tracking_players_df.playId==playId)&(tracking_players_df.gameId==gameId)].copy()
+def store_play(tracking_df,gameId,playId,idx):
+    # grab the unique (gameId,playId). this df will contain each players, at all frames
+    selected_tracking_df = tracking_df[(tracking_df.playId==playId)&(tracking_df.gameId==gameId)].copy()
 
+    # sort the frames
     sorted_frame_list = selected_tracking_df.frameId.unique()
     sorted_frame_list.sort()
 
@@ -60,6 +56,10 @@ def store_play(games,tracking_df,play_df,players,gameId,playId, idx):
         try:
             for team in selected_tracking_df.club.unique():
                 plot_df = selected_tracking_df[(selected_tracking_df.club==team)&(selected_tracking_df.frameId==frameId)].copy()
+                #print()
+                #print(gameId,playId,frameId)
+                #print(team)
+                #print(plot_df)
                 if team != "football":
                     if team not in t_dict:
                         t_dict[team] = i
@@ -76,7 +76,7 @@ def store_play(games,tracking_df,play_df,players,gameId,playId, idx):
                             home_team_density_grid[x_arr][y_arr] += 1
                         else:
                             away_team_density_grid[x_arr][y_arr] += 1
-            
+
             frames.append([position_occupied_grid, home_team_density_grid, away_team_density_grid])
         except Exception as error:
             print("An error has occured:", error)
@@ -88,14 +88,13 @@ def store_play(games,tracking_df,play_df,players,gameId,playId, idx):
             print("y1=",y1)
             print("idx=",idx)
             exit()
-
     return frames
 
 
 ## MAiN #########################################################################################
 #################################################################################################
 if __name__ == "__main__":
-    length = len(plays_f["gameId"])
+    length = len(gameid_playid_arr)
     print(f"Total of {length} plays to iterate")
     start_time = time.time()
     try:
@@ -114,7 +113,7 @@ if __name__ == "__main__":
                             time.sleep(0.0001)
                             continue
 
-            gameplay_frames = store_play(games,week1,plays,players,gameId,playId,idx)
+            gameplay_frames = store_play(week1,gameId,playId,idx)
             
             with open(output_file, "w") as txt_file:
                 for grids in gameplay_frames:
@@ -123,6 +122,7 @@ if __name__ == "__main__":
                             str_line = ''.join(str(x) for x in line)
                             txt_file.write(" ".join(''.join(str_line)) + "\n")
                         txt_file.write("\n")
+                    txt_file.write("=========================================================================================================================\n")
     except Exception as error:
         print()
         print("Program crashed while printing:", error)

@@ -56,10 +56,7 @@ def store_play(tracking_df,gameId,playId,idx):
         try:
             for team in selected_tracking_df.club.unique():
                 plot_df = selected_tracking_df[(selected_tracking_df.club==team)&(selected_tracking_df.frameId==frameId)].copy()
-                #print()
-                #print(gameId,playId,frameId)
-                #print(team)
-                #print(plot_df)
+                
                 if team != "football":
                     if team not in t_dict:
                         t_dict[team] = i

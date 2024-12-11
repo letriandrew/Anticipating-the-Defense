@@ -1,6 +1,10 @@
+## GLOBAL #######################################################################################
+#################################################################################################
 import math
 import pandas as pd
 
+## FUNCTIONS ####################################################################################
+#################################################################################################
 # Function to isolate the respective play, its players, and its metadata to reduce compute
 def isolate_play(csv, targetGameId, targetPlayId):
     working_csv = pd.read_csv(csv)

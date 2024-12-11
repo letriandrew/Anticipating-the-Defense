@@ -11,7 +11,7 @@ players = players[['nflId', 'position']]
 
 plays = pd.read_csv('data/plays.csv')
 plays = plays[[
-    'gameId', 'playId', 'playDescription', 'yardsToGo', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'qbSpike', 'qbKneel', 'pff_runConceptPrimary', 'absoluteYardlineNumber', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak', 'timeToThrow', 'targetX', 'targetY', 'offenseFormation', 'receiverAlignment', 'pff_passCoverage', 'pff_manZone', 'pff_runPassOption', 'timeInTackleBox', 'timeToSack', 'passTippedAtLine', 'unblockedPressure', 'rushLocationType'
+    'gameId', 'playId', 'playDescription', 'yardsToGo', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'qbSpike', 'qbKneel', 'pff_runConceptPrimary', 'absoluteYardlineNumber', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak', 'timeToThrow', 'offenseFormation', 'receiverAlignment', 'pff_passCoverage', 'pff_manZone', 'pff_runPassOption', 'timeInTackleBox', 'timeToSack', 'passTippedAtLine', 'unblockedPressure', 'rushLocationType', 'passResult', 'passLength',
 ]]
 
 #columns removed = 'playDescription, 'quarter', 'down', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'passResult',
@@ -51,7 +51,7 @@ filtered_plays = filtered_plays.drop(columns=['playNullifiedByPenalty', 'qbKneel
 def create_final_tracking_week():
 
     #combine week 1 to 9 and flip plays in the left direction
-    for week in range(1, 9):
+    for week in range(1, 2):
         print(f"Augmenting Week {week}")
         tracking = pd.read_csv(f'data/tracking_week_{week}.csv')
 
@@ -116,7 +116,7 @@ def create_final_tracking_week():
         merged_data = merged_data[merged_data['rushLocationType'].isna()]
 
         #remove headway 
-        merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'position', 'pff_runConceptPrimary', 'pff_runPassOption', 'rushLocationType'])
+        merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'position', 'pff_runConceptPrimary', 'pff_runPassOption', 'rushLocationType', 'event', 'absoluteYardlineNumber'])
 
         #save to csv file
         merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)

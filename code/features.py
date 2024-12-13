@@ -26,7 +26,7 @@ categorical_categories_onehot = [
 
 spatial_features = ['x', 'y', 's', 'a', 'dis', 'o', 'dir']
 
-unique_id = ['gameId', 'playId', 'nflId', 'frameType', 'club', 'week']
+unique_id = ['gameId', 'playId', 'nflId', 'frameId']
 
 ## FUNCTIONS ####################################################################################
 #################################################################################################

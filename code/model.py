@@ -3,6 +3,7 @@ import numpy as np
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.layers import Input, Conv2D, Dense, Flatten, concatenate
 from sklearn.model_selection import train_test_split
+import sys
 
 ## Loading  #############################################################################
 #########################################################################################
@@ -12,7 +13,11 @@ df_context = pd.read_csv('data/processed/final_tracking_week_1_context.csv')
 df_spatial = pd.read_csv('data/processed/final_tracking_week_1_spatial.csv')
 
 #ensure the data is aligned on unique identifiers
-df = df_context.merge(df_spatial, on=['gameId', 'playId', 'nflId', 'frameType', 'club', 'week'])
+df = df_context.merge(df_spatial, on=['gameId', 'playId', 'nflId', 'frameId'])
+
+df.to_csv('data/processed/test.csv')
+
+sys.exit()
 
 #extract the target variable
 y = df['expectedPointsAdded']

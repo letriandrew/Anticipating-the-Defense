@@ -65,6 +65,6 @@ history = model.fit(
     [X_spatial_train, X_context_train],
     y_train,
     validation_data=([X_spatial_test, X_context_test], y_test),
-    epochs=20,
-    batch_size=32
+    epochs=5, #reduced from 20
+    batch_size=8 #reduced from 32
 )

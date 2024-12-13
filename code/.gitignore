@@ -1,5 +1,5 @@
 # exclude everything
-parsed_data/*
+archive/parsed_data/*
 
 # exception to the rule
-!parsed_data/*.zip*
+!archive/parsed_data/*.zip*

@@ -14,7 +14,10 @@ def isolate_play(csv, targetGameId, targetPlayId):
         (working_csv['gameId'] == targetGameId) & (working_csv['playId'] == targetPlayId)
     ]
 
-    filtered_csv.to_csv('data/processed/temp', index = False)
+    #return dataframe of the filtered rows
+    return filtered_csv
+
+    #filtered_csv.to_csv('data/processed/temp', index = False)
 
 # Function to compute Euclidean distance between two coordinate points
 def compute_distance(target1, target2): 

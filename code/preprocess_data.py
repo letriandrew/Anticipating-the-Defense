@@ -11,7 +11,7 @@ players = players[['nflId', 'position']]
 
 plays = pd.read_csv('data/plays.csv')
 plays = plays[[
-    'gameId', 'playId', 'playDescription', 'yardsToGo', 'playNullifiedByPenalty', 'preSnapHomeTeamWinProbability', 'preSnapVisitorTeamWinProbability', 'expectedPoints', 'qbSpike', 'qbKneel', 'pff_runConceptPrimary', 'absoluteYardlineNumber', 'yardsGained', 'homeTeamWinProbabilityAdded', 'visitorTeamWinProbilityAdded', 'expectedPointsAdded', 'qbSneak', 'timeToThrow', 'offenseFormation', 'receiverAlignment', 'pff_passCoverage', 'pff_manZone', 'pff_runPassOption', 'timeInTackleBox', 'timeToSack', 'passTippedAtLine', 'unblockedPressure', 'rushLocationType', 'passResult', 'passLength',
+    'gameId', 'playId', 'playDescription', 'yardsToGo', 'playNullifiedByPenalty', 'qbSpike', 'qbKneel', 'absoluteYardlineNumber', 'yardsGained',  'qbSneak',  'pff_runPassOption', 'rushLocationType', 'passResult', 'pff_runConceptPrimary', 'pff_runConceptSecondary'
 ]]
 
 #columns removed = 'playDescription, 'quarter', 'down', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'passResult',
@@ -61,18 +61,6 @@ def create_final_tracking_week():
         #invert direction
         tracking.loc[tracking['playDirection'] == 'left', 'dir'] = 360 - tracking['dir']
 
-        #edge cases to make sure we are not getting plays that begin in the endzone because that's impossible
-        #tracking.loc[tracking['x'] > 111, 'x'] = 111
-        #tracking.loc[tracking['x'] < 9, 'x'] = 9
-        #BUT WHAT ABOUT DEFENSIVE PLAYERS PLAYING THE ENDZONE... comment for now...
-
-        #edge cases for above but for the vertical positions (y)
-        #tracking.loc[tracking['y'] >= 53.3, 'y'] = 53.2
-        #tracking.loc[tracking['y'] < 0, 'y'] = 0
-
-        #new column to track week
-        tracking['week'] = week
-
         #make sure nflid is not a floatvalue
         tracking['nflId'] = tracking['nflId'].fillna(0).astype(int)
 
@@ -80,43 +68,23 @@ def create_final_tracking_week():
         merged_data = tracking.merge(players, on='nflId', how='left')
 
         merged_data = merged_data.merge(filtered_plays, on=['gameId', 'playId'], how='left')
-        
-        #define what is "successful" using EPA
-        merged_data['play_success'] = False
 
-        merged_data.loc[merged_data['expectedPointsAdded'] > 0 , 'play_success'] = True
+        positions = ['TE', 'T', 'G', 'C', 'DE', 'DT', 'SS', 'OLB', 'ILB', 'NT', 'MLB', 'LB', 'FS', 'DB']
 
-        offensive_positions = ['QB', 'RB', 'TE', 'WR', 'FB', 'T', 'G', 'C']
-        defensive_positions = ['DE', 'DT', 'SS', 'OLB', 'ILB', 'NT', 'MLB', 'LB', 'FS', 'DB', 'CB']
+        merged_data = merged_data[merged_data['position'].isin(positions)]
 
-        #distinguish offense, defense players while leaving ball as NaN
-        merged_data['team_side'] = 'NaN'
+        #keep only rows where 'pff_runConceptPrimary' is not NA (run plays)
+        merged_data = merged_data[merged_data['pff_runConceptPrimary'].notna()]
 
-        merged_data.loc[merged_data['position'].isin(offensive_positions), 'team_side'] = 'offense'
-
-        merged_data.loc[merged_data['position'].isin(defensive_positions), 'team_side'] = 'defense'
-
-        #keep only rows where 'pff_runConceptPrimary' is 'NA' AKA pass plays only
-        merged_data = merged_data[merged_data['pff_runConceptPrimary'].isna()]
-
-        #keep only hard pass plays no RPO
+        #keep only hard run plays no RPO
         merged_data = merged_data[merged_data['pff_runPassOption'] == 0]
 
-        #initialize the field length to the end zone as 100 yards
-        merged_data['yardsToEndzone'] = 100.0
-
-        #adjust yardage for plays going "left"
-        merged_data.loc[merged_data['playDirection'] == 'left', 'yardsToEndzone'] = \
-            merged_data.loc[merged_data['playDirection'] == 'left', 'absoluteYardlineNumber'] - 10.0
-
-        #adjust yardage for plays going "right"
-        merged_data.loc[merged_data['playDirection'] == 'right', 'yardsToEndzone'] = \
-            110.0 - merged_data.loc[merged_data['playDirection'] == 'right', 'absoluteYardlineNumber']
+        merged_data = merged_data[merged_data['passResult'].isna()]
         
-        merged_data = merged_data[merged_data['rushLocationType'].isna()]
+        merged_data = merged_data[merged_data['rushLocationType'].notna()]
 
         #remove headway 
-        merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'position', 'pff_runConceptPrimary', 'pff_runPassOption', 'rushLocationType', 'event', 'absoluteYardlineNumber'])
+        merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'pff_runConceptPrimary', 'pff_runPassOption', 'rushLocationType', 'absoluteYardlineNumber', 'pff_runConceptSecondary', 'club', 's', 'a','dis','o','dir', 'playDirection', 'passResult', 'yardsToGo', 'yardsGained', 'event'])
 
         #save to csv file
         merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)

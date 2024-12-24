@@ -38,7 +38,11 @@ def compute_distance(target1, target2):
     # Calculate the distance
     distance = math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
     
-    return distance
+    # theta is based on target1 as the reference point
+    theta_rad = math.atan((y2-y1), (x2-x1))
+    theta_deg = math.degrees(theta_rad)
+
+    return distance,theta_deg
 
 # Function to find closest teammates regardless of defense/offense in given frame
 def find_closest_teammates_distance(csv, frameId, targetId, teammates_quantity):
@@ -70,10 +74,10 @@ def find_closest_teammates_distance(csv, frameId, targetId, teammates_quantity):
         teammate_coords = (teammate['x'], teammate['y'])
         
         #compute distance to teammate
-        distance = compute_distance(target_coords, teammate_coords)
+        distance,theta_deg = compute_distance(target_coords, teammate_coords)
         
         #append the playerId and distance to the list
-        distances.append((teammate['playerId'], distance))
+        distances.append((teammate['playerId'], distance, theta_deg))
 
     #sort the list by distance (ascending) and select the closest teammates
     closest_teammates = sorted(distances, key=lambda x: x[1])[:teammates_quantity]
@@ -110,10 +114,10 @@ def find_closest_opponents_distance(csv, frameId, targetId, opponents_quantity):
         opponents_coords = (opponents['x'], opponents['y'])
         
         #compute distance to opponent
-        distance = compute_distance(target_coords, opponents_coords)
+        distance,theta_deg = compute_distance(target_coords, opponents_coords)
         
         #append the playerId and distance to the list
-        distances.append((opponents['playerId'], distance))
+        distances.append((opponents['playerId'], distance, theta_deg))
 
     #sort the list by distance (ascending) and select the closest opponents
     closest_opponents = sorted(distances, key=lambda x: x[1])[:opponents_quantity]
@@ -139,6 +143,6 @@ def find_football_distance(csv, frameId, targetId):
     ball_coords = (ball['x'], ball['y'])
 
     #compute distance to ball from target
-    distance = compute_distance(target_coords, ball_coords)
+    distance,theta_deg = compute_distance(target_coords, ball_coords)
 
-    return distance
+    return distance,theta_deg

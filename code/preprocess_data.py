@@ -69,7 +69,7 @@ def create_final_tracking_week():
 
         merged_data = merged_data.merge(filtered_plays, on=['gameId', 'playId'], how='left')
 
-        positions = ['TE', 'T', 'G', 'C', 'DE', 'DT', 'SS', 'OLB', 'ILB', 'NT', 'MLB', 'LB', 'FS', 'DB']
+        positions = ['TE', 'T', 'G', 'C', 'DE', 'DT', 'SS', 'OLB', 'ILB', 'NT', 'MLB', 'LB', 'FS', 'DB', 'CB']
 
         merged_data = merged_data[merged_data['position'].isin(positions)]
 

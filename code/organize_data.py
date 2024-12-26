@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import os
 import time
+from sklearn.preprocessing import MinMaxScaler
 
 ## INIT #########################################################################################
 #################################################################################################
@@ -23,6 +24,11 @@ def organize_week(week_file):
         file_name = "organized_" + str(os.path.basename(week_file))
 
         tracking_pd = pd.read_csv(file)
+
+        #normalize the 'x' and 'y' columns
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        tracking_pd[['x', 'y']] = scaler.fit_transform(tracking_pd[['x', 'y']])
+
         col_list = list(tracking_pd)
         col_list[2], col_list[3] = col_list[3], col_list[2]
         tracking_pd = tracking_pd.reindex(columns=col_list)

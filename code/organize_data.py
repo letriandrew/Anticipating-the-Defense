@@ -26,8 +26,8 @@ def organize_week(week_file):
         tracking_pd = pd.read_csv(file)
 
         #normalize the 'x' and 'y' columns
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        tracking_pd[['x', 'y']] = scaler.fit_transform(tracking_pd[['x', 'y']])
+        #scaler = MinMaxScaler(feature_range=(0, 1))
+        #tracking_pd[['x', 'y']] = scaler.fit_transform(tracking_pd[['x', 'y']])
 
         col_list = list(tracking_pd)
         col_list[2], col_list[3] = col_list[3], col_list[2]

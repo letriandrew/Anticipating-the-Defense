@@ -154,21 +154,24 @@ def gap_sequencer(csv):
     except FileNotFoundError:
         return "Error: The specified CSV file does not exist. Please check the file path and try again."
     
-    # Filter rows with frameType SNAP or AFTER_SNAP
+    #filter rows with frameType SNAP or AFTER_SNAP
     filtered_data = working_csv[working_csv['frameType'].isin(['SNAP', 'AFTER_SNAP'])]
 
-    # Group by gameId and playId to create sequences
+    #group by gameId and playId to create sequences
     sequences = []
-    gap_analysis = []  # Added: List to store gap analysis for each play
+    gap_analysis = [] #list to store gap analysis for each play
 
     for (game_id, play_id), play_data in filtered_data.groupby(['gameId', 'playId']):
         frames = []
         for frame_id, frame_data in play_data.groupby('frameId'):
 
-            # Apply position reassignment for all relevant frames
+            #apply position reassignment for all relevant frames
             frame_data = reassign_positions(frame_data)
 
-            # Only keep SNAP frame and only 10 AFTER_SNAP frames
+            #ensure nflId is an integer
+            frame_data['nflId'] = frame_data['nflId'].astype(int)
+
+            #only keep SNAP frame and only 10 AFTER_SNAP frames
             if len(frames) >= 11:
                 break
 
@@ -178,31 +181,31 @@ def gap_sequencer(csv):
 
         sequences.append(frames)
 
-        # Added: Perform gap analysis for the play
-        if len(frames) == 11:  # Ensure we have all 21 frames
+        #perform gap analysis for the play
+        if len(frames) == 11:  #ensure we have all 21 frames
             gap_result = find_gaps(frames, game_id, play_id)
             if gap_result:
                 gap_analysis.append(gap_result)
 
-    return sequences, gap_analysis  # Updated: Return gap_analysis along with sequences
+    return sequences, gap_analysis 
 
 def reassign_positions(frame_data):
     """
     Reassigns positions for offensive line players based on their 'y' values.
     The positions 'LT', 'LG', 'C', 'RG', 'RT' are assigned based on descending order of 'y'.
     """
-    # Filter players with initial positions relevant to the offensive line
+    #filter players with initial positions relevant to the offensive line
     offensive_line = frame_data[frame_data['position'].isin(['T', 'G', 'C'])]
     if len(offensive_line) < 5:
         return frame_data  # Skip reassignment if there aren't enough players
 
-    # Sort by 'y' value in descending order
+    #sort by 'y' value in descending order
     offensive_line_sorted = offensive_line.sort_values(by='y', ascending=False)
 
-    # Ensure we have exactly 5 players to assign positions
+    #ensure we have exactly 5 players to assign positions
     offensive_line_sorted = offensive_line_sorted.head(5)
     
-    # Assign new positions based on the sorted 'y' values
+    #assign new positions based on the sorted 'y' values
     new_positions = ['LT', 'LG', 'C', 'RG', 'RT']
     for i, (index, _) in enumerate(offensive_line_sorted.iterrows()):
         frame_data.loc[index, 'position'] = new_positions[i]
@@ -226,8 +229,11 @@ def find_gaps(frames, game_id, play_id):
         .reset_index()
     )
 
+    #define the list of offensive positions
+    offensive_positions_of_interest = ['LT', 'LG', 'C', 'RG', 'RT']
+
     #find the 'y' positions for the offensive line
-    offensive_line = combined_frames[combined_frames['position'].isin(['LT', 'LG', 'C', 'RG', 'RT'])]
+    offensive_line = combined_frames[combined_frames['position'].isin(offensive_positions_of_interest)]
     if len(offensive_line) < 5:
         raise ValueError("Not enough offensive line players")
 
@@ -235,30 +241,33 @@ def find_gaps(frames, game_id, play_id):
     avg_offensive_line = (
         offensive_line.groupby('position')[numeric_columns]
         .mean()
-        .sort_values(by='y', ascending=False)
+        .sort_values(by='y', ascending=True)
         .reset_index()
     )
 
-    #define gap positions
-    gap_positions = {
-        'left_c': avg_offensive_line.iloc[0]['y'] - 1,  #LT
-        'left_b': (avg_offensive_line.iloc[0]['y'] + avg_offensive_line.iloc[1]['y']) / 2,  #LT-LG
-        'left_a': (avg_offensive_line.iloc[1]['y'] + avg_offensive_line.iloc[2]['y']) / 2,  #LG-C
-        'right_a': (avg_offensive_line.iloc[2]['y'] + avg_offensive_line.iloc[3]['y']) / 2,  #C-RG
-        'right_b': (avg_offensive_line.iloc[3]['y'] + avg_offensive_line.iloc[4]['y']) / 2,  #RG-RT
-        'right_c': avg_offensive_line.iloc[4]['y'] + 1,  #RT
+    #define gap range
+    gap_range = {
+        'left_c': {'min_y': avg_offensive_line.iloc[0]['y'] - 3, 'max_y': avg_offensive_line.iloc[0]['y']},
+        'left_b': {'min_y': avg_offensive_line.iloc[0]['y'], 'max_y': avg_offensive_line.iloc[1]['y']},  
+        'left_a': {'min_y': avg_offensive_line.iloc[1]['y'], 'max_y': avg_offensive_line.iloc[2]['y']},
+        'right_a': {'min_y': avg_offensive_line.iloc[2]['y'], 'max_y': avg_offensive_line.iloc[3]['y']},
+        'right_b': {'min_y': avg_offensive_line.iloc[3]['y'], 'max_y': avg_offensive_line.iloc[4]['y']},
+        'right_c': {'min_y': avg_offensive_line.iloc[4]['y'], 'max_y': avg_offensive_line.iloc[4]['y'] + 3},
     }
 
     center_x_value = avg_offensive_line.iloc[2]['x']
 
     #initialize a dictionary to track the nflId of the player filling each gap
-    gap_filled_by_player = {gap: {'nflId': None, 'time_spent': 0} for gap in gap_positions.keys()}
+    gap_filled_by_player = {gap: {'nflId': None, 'time_spent': 0} for gap in gap_range.keys()}
 
     #define the list of defensive positions
     defensive_positions_of_interest = ['DE', 'DT', 'SS', 'OLB', 'ILB', 'NT', 'MLB', 'LB', 'FS', 'DB', 'CB']
 
     #filter combined_frames to get only the defensive players with relevant positions
     defensive_players = combined_frames[combined_frames['position'].isin(defensive_positions_of_interest)]
+
+    #filter combined_frames to get only the offensive linemen
+    offensive_line = combined_frames[combined_frames['position'].isin(offensive_positions_of_interest)]
 
     #group defensive players by 'nflId' and calculate their average position
     avg_defensive_positions = (
@@ -268,28 +277,35 @@ def find_gaps(frames, game_id, play_id):
     )
 
     for _, player in avg_defensive_positions.iterrows():
-        for gap_key, gap_value in gap_positions.items():
-
+        #redefine gap range
+        gap_range = {
+            'left_c': {'min_y': avg_offensive_line.iloc[0]['y'] - 3, 'max_y': avg_offensive_line.iloc[0]['y']},
+            'left_b': {'min_y': avg_offensive_line.iloc[0]['y'], 'max_y': avg_offensive_line.iloc[1]['y']},  
+            'left_a': {'min_y': avg_offensive_line.iloc[1]['y'], 'max_y': avg_offensive_line.iloc[2]['y']},
+            'right_a': {'min_y': avg_offensive_line.iloc[2]['y'], 'max_y': avg_offensive_line.iloc[3]['y']},
+            'right_b': {'min_y': avg_offensive_line.iloc[3]['y'], 'max_y': avg_offensive_line.iloc[4]['y']},
+            'right_c': {'min_y': avg_offensive_line.iloc[4]['y'], 'max_y': avg_offensive_line.iloc[4]['y'] + 3},
+        }
+        for gap_key, gap_value in gap_range.items():
             #edge case to ensure off line players are not affecting gap assignment
             x_distance = abs(player['x'] - center_x_value)
 
+            """
             if int(player['nflId']) == 54650 and int(play_id) == 1736:
                 print('player_x', player['x'])
                 print('player_y', player['y'])
                 print('center_x', center_x_value)
                 print(x_distance)
+            """
 
             #comparing x distance from the center position to determine if player should be accounted for for gap fill
-            if x_distance > .02:
-                continue
-
-            #calculate distance of the defensive player to the gap
-            y_distance = abs(player['y'] - gap_value)
+            #if x_distance > 2:
+            #    continue
 
             #if the player is within a threshold distance of the gap, consider them as attacking the gap
-            if y_distance < 1:  #adjust threshold as needed
+            if gap_value['min_y'] <= player['y'] < gap_value['max_y']:
                 gap_filled_by_player[gap_key]['nflId'] = player['nflId']
-                gap_filled_by_player[gap_key]['time_spent'] += 1  #increment time spent in the gap based on frames
+                gap_filled_by_player[gap_key]['time_spent'] += 1  #increment time spent in the gap
 
 
     #which gap is longest
@@ -304,6 +320,7 @@ def find_gaps(frames, game_id, play_id):
     return {
         'gameId': game_id, 'playId': play_id, 'gapsAttacked': gap_result
     }
+
 
 def add_gap_info_to_before_snap(csv, gap_analysis):
     try:
@@ -331,7 +348,7 @@ def add_gap_info_to_before_snap(csv, gap_analysis):
     for _, row in combined_data.iterrows():
         game_id = row['gameId']
         play_id = row['playId']
-        nfl_id = row['nflId']
+        nfl_id = int(row['nflId'])
         frame_id = row['frameId']
         x = row['x']
         y = row['y']
@@ -394,8 +411,9 @@ def aggregate_play_data(input_csv):
         play_sequence = []
         
         #extract gap values from the first frame (assuming they are the same across all frames in a play)
-        if frameId == group['frameId'].iloc[0]:  # Only get gap values for the first frame
-            gap_values = group[['left_c', 'left_b', 'left_a', 'right_a', 'right_b', 'right_c']].iloc[0].tolist()
+        gap_values = group[['left_c', 'left_b', 'left_a', 'right_a', 'right_b', 'right_c']].iloc[0].tolist()
+        # Ensure all values in gap_values are integers or replace invalid ones with a default value
+        gap_values = [int(value) if pd.notna(value) and isinstance(value, (int, float)) else -1 for value in gap_values]
         
         #create the sequence of player data for each frame
         frame_list = group[['nflId', 'x', 'y']].values.tolist()
@@ -432,22 +450,23 @@ def aggregate_play_data(input_csv):
 sequences, gap_analysis = gap_sequencer('data/processed/organized_final_tracking_week_1.csv')
 
 """
-for i, sequence in enumerate(sequences[:1], start=1):
+for i, sequence in enumerate(sequences[1:2], start=1):
     print(f"Sequence {i}: {sequence} \n")
 
-for gap_result in gap_analysis[:1]:
+for gap_result in gap_analysis[1:2]:
     print(f"Gap Analysis: {gap_result} \n")
 """
 
-#before_snap_data = add_gap_info_to_before_snap('data/processed/organized_final_tracking_week_1.csv', gap_analysis)
+
+before_snap_data = add_gap_info_to_before_snap('data/processed/organized_final_tracking_week_1.csv', gap_analysis)
 
 #define a list of positions to exclude
-#exclude_positions = ['T', 'G', 'C', 'TE']
+exclude_positions = ['T', 'G', 'C', 'TE']
 
 #filter the DataFrame to exclude these positions
-#before_snap_data = before_snap_data[~before_snap_data['position'].isin(exclude_positions)]
+before_snap_data = before_snap_data[~before_snap_data['position'].isin(exclude_positions)]
 
-#before_snap_data.to_csv('data/processed/organized_final_tracking_week_1_before_snap.csv', index=False)
+before_snap_data.to_csv('data/processed/organized_final_tracking_week_1_before_snap.csv', index=False)
 
 aggregate_play_data('data/processed/organized_final_tracking_week_1_before_snap.csv')
 

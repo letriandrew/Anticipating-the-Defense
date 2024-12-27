@@ -2,6 +2,7 @@
 #################################################################################################
 import math
 import pandas as pd
+import os 
 
 ## FUNCTIONS ####################################################################################
 #################################################################################################
@@ -287,11 +288,148 @@ def find_gaps(frames, game_id, play_id):
         'gameId': game_id, 'playId': play_id, 'gapsAttacked': gap_result
     }
 
+def add_gap_info_to_before_snap(csv, gap_analysis):
+    try:
+        working_csv = pd.read_csv(csv)
+        before_snap_data = working_csv[working_csv['frameType'] == 'BEFORE_SNAP']
+    except FileNotFoundError:
+        return "Error: The specified CSV file does not exist. Please check the file path and try again."
+    
+    #list of only defensive positions
+    allowed_defensive_positions = ['DE', 'DT', 'SS', 'OLB', 'ILB', 'NT', 'MLB', 'LB', 'FS', 'DB', 'CB']
+
+    #initialize result storage
+    result_rows = []
+
+    #merge gap_analysis output for mapping
+    gap_df = pd.DataFrame(gap_analysis)
+    combined_data = pd.merge(
+        before_snap_data,
+        gap_df[['gameId', 'playId', 'gapsAttacked']],
+        on=['gameId', 'playId'],
+        how='left'
+    )
+
+    #iterate through each BEFORE_SNAP frame and create the gap columns
+    for _, row in combined_data.iterrows():
+        game_id = row['gameId']
+        play_id = row['playId']
+        nfl_id = row['nflId']
+        frame_id = row['frameId']
+        x = row['x']
+        y = row['y']
+        position = row['position']
+        gaps_attacked = row['gapsAttacked']
+
+        #default values for gaps if no information is available
+        gap_data = {
+            'gameId': game_id,
+            'playId': play_id,
+            'nflId': nfl_id,
+            'frameId': frame_id,
+            'x': x,
+            'y': y,
+            'position': position,
+            'left_c': None,
+            'left_b': None,
+            'left_a': None,
+            'right_a': None,
+            'right_b': None,
+            'right_c': None
+        }
+
+        #only assign nflId to gaps if the defensive player is in the allowed list of positions
+        if pd.notna(gaps_attacked):  #check if gapsAttacked has valid data
+            for gap, info in gaps_attacked.items():
+                nfl_id = info.get('nflId', None)
+                
+                #only fill the gap if the player has an allowed defensive position
+                if nfl_id is not None and position in allowed_defensive_positions:
+                    gap_data[gap] = nfl_id  #assign the nflId to the gap column
+
+        result_rows.append(gap_data)
+
+    #convert the result to a DF
+    result_df = pd.DataFrame(result_rows)
+
+    #return DF for BEFORE_SNAP data with gaps and frame details to keep x, y, and position
+    return result_df
+
+def aggregate_play_data(input_csv):
+    """
+    This function aggregates the player position data for each gameId, playId, and frameId, creating a sequence of player positions while keeping the gap columns
+
+    """
+    #load the CSV into a DataFrame
+    df = pd.read_csv(input_csv)
+    
+    #remove the 'position' column 
+    df = df.drop(columns=['position'])
+
+    #group by gameId, playId, and frameId to collect player data
+    grouped = df.groupby(['gameId', 'playId', 'frameId'])
+
+    #prepare a list to hold the processed rows
+    aggregated_data = []
+
+    #iterate over the groups and aggregate data for each game-play-frame sequence
+    for (gameId, playId, frameId), group in grouped:
+        play_sequence = []
+        
+        #extract gap values from the first frame (assuming they are the same across all frames in a play)
+        if frameId == group['frameId'].iloc[0]:  # Only get gap values for the first frame
+            gap_values = group[['left_c', 'left_b', 'left_a', 'right_a', 'right_b', 'right_c']].iloc[0].tolist()
+        
+        #create the sequence of player data for each frame
+        frame_list = group[['nflId', 'x', 'y']].values.tolist()
+        play_sequence.append(frame_list)
+        
+        #check if the row for this game and play exists, and create a new row if not
+        existing_row = next((row for row in aggregated_data if row['gameId'] == gameId and row['playId'] == playId), None)
+        if not existing_row:
+            row = {
+                'gameId': gameId,
+                'playId': playId,
+                'left_c': gap_values[0],
+                'left_b': gap_values[1],
+                'left_a': gap_values[2],
+                'right_a': gap_values[3],
+                'right_b': gap_values[4],
+                'right_c': gap_values[5],
+                'sequence': [play_sequence]
+            }
+            aggregated_data.append(row)
+        else:
+            #add the sequence data for this frame to the existing row
+            existing_row['sequence'].append(play_sequence)
+
+
+    aggregated_df = pd.DataFrame(aggregated_data)
+
+    aggregated_df.to_csv('data/processed/final_tracking_week_1_aggregated.csv', index=False)
+
+    print(f"Aggregated data with gap columns has been saved.")
+
+
 #test
 sequences, gap_analysis = gap_sequencer('data/processed/organized_final_tracking_week_1.csv')
 
+"""
 for i, sequence in enumerate(sequences[:1], start=1):
     print(f"Sequence {i}: {sequence} \n")
 
-for gap_result in gap_analysis[:50]:
+for gap_result in gap_analysis[:1]:
     print(f"Gap Analysis: {gap_result} \n")
+"""
+
+before_snap_data = add_gap_info_to_before_snap('data/processed/organized_final_tracking_week_1.csv', gap_analysis)
+
+#define a list of positions to exclude
+exclude_positions = ['T', 'G', 'C', 'TE']
+
+#filter the DataFrame to exclude these positions
+before_snap_data = before_snap_data[~before_snap_data['position'].isin(exclude_positions)]
+
+before_snap_data.to_csv('data/processed/organized_final_tracking_week_1_before_snap.csv', index=False)
+
+aggregate_play_data('data/processed/organized_final_tracking_week_1_before_snap.csv')

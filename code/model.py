@@ -1,97 +1,148 @@
-import pandas as pd
 import numpy as np
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Conv2D, Dense, Flatten, concatenate
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, LSTM, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.callbacks import EarlyStopping
+from keras.metrics import AUC, Accuracy, Precision, Recall
+from tensorflow.keras.regularizers import l2
+import tensorflow as tf
 
 ## Loading ######################################################################################
 #################################################################################################
 
 #load context and spatial data
-try:
-    df_context = pd.read_csv('data/processed/final_tracking_week_1_context.csv')
-    df_spatial = pd.read_csv('data/processed/final_tracking_week_1_spatial.csv')
-except FileNotFoundError:
-    print("Data files not found. Please run features.py first.")
-    exit()
+# Initialize an empty list to store dataframes
+all_data = []
 
-#ensure the data is aligned on unique identifiers
-df = df_context.merge(df_spatial, on=['gameId', 'playId', 'nflId', 'frameId'])
+# Iterate through weeks 1 to 9 and load the data
+for week in range(1, 10):
+    file_path = f'data/processed/final_tracking_week_{week}_aggregated.csv'
+    data = pd.read_csv(file_path)
+    all_data.append(data)
 
-#extract the target variable
-if 'expectedPointsAdded' not in df_context.columns:
-    raise ValueError("Target column 'expectedPointsAdded' not found in context data.")
+# Concatenate all the dataframes into one
+data = pd.concat(all_data, ignore_index=True)
 
-y = df['expectedPointsAdded']
+# Parse the sequences from strings to arrays
+def parse_sequence(seq_str):
+    try:
+        parsed = eval(seq_str)
+        # Ensure that each inner list has 3 elements (nflId, x, y)
+        return [inner if len(inner) == 3 else [0, 0, 0] for inner in parsed]  # Adjust as necessary
+    except Exception as e:
+        print(f"Error parsing sequence: {seq_str}, Error: {e}")
+        raise e
 
-#drop the target from context features
-X_context = df_context.drop(columns=['expectedPointsAdded'])
+data['sequence_parsed'] = data['sequence'].apply(parse_sequence)
 
-#prepare spatial features
-X_spatial = df_spatial[['x', 'y', 's', 'a', 'dis', 'o', 'dir']].values
+# Extract sequences and normalize
+sequences = data['sequence_parsed'].tolist()
 
-#reshape spatial features dynamically
-num_spatial_features = len(['x', 'y', 's', 'a', 'dis', 'o', 'dir'])
-X_spatial = X_spatial.reshape((X_spatial.shape[0], 1, 1, num_spatial_features))
+# Get max sequence length
+max_length = max(len(seq) for seq in sequences)
 
-#train-test split
-X_context_train, X_context_test, X_spatial_train, X_spatial_test, y_train, y_test = train_test_split(
-    X_context, X_spatial, y, test_size=0.2, random_state=42
+# Pad the sequences to make them uniform in length
+padded_sequences = pad_sequences(
+    sequences, padding='post', dtype='int32', value=-1, maxlen=max_length
 )
 
-#check for NaN values in X_context_train
-nan_context = X_context_train.isna().any()
-if nan_context.any():
-    print("NaN values found in the following context columns:")
-    print(nan_context[nan_context].index.tolist())
-
-#check for NaN values in y_train
-nan_y = y_train.isna()
-if nan_y.any():
-    print("NaN values found in the target variable y_train.")
-
-#check for NaN values in X_spatial_train
-nan_spatial = np.isnan(X_spatial_train)
-if nan_spatial.any():
-    print(f"NaN values found in X_spatial_train at positions: {np.argwhere(nan_spatial)}")
-
-#stop execution if NaN values are found
-if nan_context.any() or nan_y.any() or nan_spatial.any():
-    raise ValueError("NaN values found in the data. Please check the output above for details.")
-
-
-## Define CNN Model #############################################################################
+## Define RNN Model #############################################################################
 #################################################################################################
 
-#spatial input
-spatial_input = Input(shape=(1, 1, num_spatial_features), name='spatial_input')
-x_spatial = Conv2D(16, (1, 1), activation='relu')(spatial_input)
-x_spatial = Flatten()(x_spatial)
+# Prepare target variables
+gaps = ['right_c', 'right_b', 'right_a', 'left_a', 'left_b', 'left_c']
+label_encoders = [LabelEncoder() for _ in gaps]
+one_hot_encoders = [OneHotEncoder(sparse_output=False) for _ in gaps]
 
-#context input
-context_input = Input(shape=(X_context.shape[1],), name='context_input')
-x_context = Dense(64, activation='relu')(context_input)
+categorical_targets = []
+for i, gap in enumerate(gaps):
+    # Encode the gap targets
+    encoded = label_encoders[i].fit_transform(data[gap])
+    one_hot = one_hot_encoders[i].fit_transform(encoded.reshape(-1, 1))
+    categorical_targets.append(one_hot)
 
-#combine spatial and context features
-combined = concatenate([x_spatial, x_context])
+# Align input and targets for train-test split
+X = padded_sequences
+y_dict = {gaps[i]: categorical_targets[i] for i in range(len(gaps))}
 
-#output layer
-output = Dense(1, activation='linear', name='output')(combined)
+# Train-test split for each gap
+X_train, X_test, y_train_dict, y_test_dict = {}, {}, {}, {}
+for gap in gaps:
+    X_train[gap], X_test[gap], y_train_dict[gap], y_test_dict[gap] = train_test_split(
+        X, y_dict[gap], test_size=0.2, random_state=42
+    )
 
-#create and compile model
-model = Model(inputs=[spatial_input, context_input], outputs=output)
-model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+# Combine the splits for training and testing
+X_train_combined = X_train[gaps[0]]  # Same X for all gaps
+X_test_combined = X_test[gaps[0]]  # Same X for all gaps
+y_train_combined = {gap: y_train_dict[gap] for gap in gaps}
+y_test_combined = {gap: y_test_dict[gap] for gap in gaps}
 
-#model summary
-model.summary()
+# Define the RNN model with multiple outputs and additional tuning
+input_layer = Input(shape=(max_length, 3))  # Input shape includes nflId, x, y
+x = LSTM(256, return_sequences=True, kernel_regularizer=l2(0.001))(input_layer)  # Increased LSTM units and added L2 regularization
+x = Dropout(0.3)(x)  # Increased dropout to 0.3
+x = LSTM(128)(x)  # Increased second LSTM units
+x = Dropout(0.3)(x)  # Increased dropout
+
+# Create separate outputs for each gap
+outputs = [Dense(len(label_encoders[i].classes_), activation='softmax', name=gaps[i])(x) for i in range(len(gaps))]
+
+# Define a list of metrics, one for each output
+metrics = [
+    AUC(name='right_a_auc'),
+    AUC(name='right_b_auc'),
+    AUC(name='right_c_auc'),
+    AUC(name='left_a_auc'),
+    AUC(name='left_b_auc'),
+    AUC(name='left_c_auc'),
+]
+
+# Define learning rate scheduler
+initial_lr = 0.001
+lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+    initial_lr, decay_steps=100000, decay_rate=0.96, staircase=True
+)
+optimizer = Adam(learning_rate=lr_schedule)
+
+# Define the model
+model = Model(inputs=input_layer, outputs=outputs)
+model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=metrics)
+
+# Early stopping to prevent overfitting
+early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
 
 ## Train the Model ##############################################################################
 #################################################################################################
 
+# Train the model
 history = model.fit(
-    [X_spatial_train, X_context_train],
-    y_train,
-    validation_data=([X_spatial_test, X_context_test], y_test),
-    epochs=5,  # Reduced from 20 for faster testing
-    batch_size=8  # Reduced from 32
+    X_train_combined,
+    [y_train_combined[gap] for gap in gaps],  # Multiple outputs
+    validation_data=(X_test_combined, [y_test_combined[gap] for gap in gaps]),
+    epochs=100,
+    batch_size=32,
+    callbacks=[early_stopping]
 )
+
+## Evaluate the Model ###########################################################################
+#################################################################################################
+
+# Evaluate the model
+evaluation = model.evaluate(
+    X_test_combined,
+    [y_test_combined[gap] for gap in gaps]
+)
+print("Evaluation Results:", evaluation)
+
+# Example predictions
+predictions = model.predict(X_test_combined)
+for i, gap in enumerate(gaps):
+    print(f"Predictions for {gap}:")
+    print(predictions[i])
+
+print(model.summary())

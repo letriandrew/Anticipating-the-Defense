@@ -3,6 +3,7 @@
 import math
 import pandas as pd
 import os 
+import time 
 
 ## FUNCTIONS ####################################################################################
 #################################################################################################
@@ -172,7 +173,7 @@ def gap_sequencer(csv):
             frame_data['nflId'] = frame_data['nflId'].astype(int)
 
             #only keep SNAP frame and only 10 AFTER_SNAP frames
-            if len(frames) >= 11:
+            if len(frames) >= 6:
                 break
 
             # Extract features (example: x, y, position)
@@ -182,7 +183,7 @@ def gap_sequencer(csv):
         sequences.append(frames)
 
         #perform gap analysis for the play
-        if len(frames) == 11:  #ensure we have all 21 frames
+        if len(frames) == 6:  #ensure we have all 21 frames
             gap_result = find_gaps(frames, game_id, play_id)
             if gap_result:
                 gap_analysis.append(gap_result)
@@ -290,17 +291,9 @@ def find_gaps(frames, game_id, play_id):
             #edge case to ensure off line players are not affecting gap assignment
             x_distance = abs(player['x'] - center_x_value)
 
-            """
-            if int(player['nflId']) == 54650 and int(play_id) == 1736:
-                print('player_x', player['x'])
-                print('player_y', player['y'])
-                print('center_x', center_x_value)
-                print(x_distance)
-            """
-
             #comparing x distance from the center position to determine if player should be accounted for for gap fill
-            #if x_distance > 2:
-            #    continue
+            if x_distance > 6:
+                continue
 
             #if the player is within a threshold distance of the gap, consider them as attacking the gap
             if gap_value['min_y'] <= player['y'] < gap_value['max_y']:
@@ -389,7 +382,7 @@ def add_gap_info_to_before_snap(csv, gap_analysis):
     #return DF for BEFORE_SNAP data with gaps and frame details to keep x, y, and position
     return result_df
 
-def aggregate_play_data(input_csv):
+def aggregate_play_data(input_csv, week):
     """
     This function aggregates the player position data for each gameId, playId, and frameId, creating a sequence of player positions while keeping the gap columns
 
@@ -425,12 +418,12 @@ def aggregate_play_data(input_csv):
             row = {
                 'gameId': gameId,
                 'playId': playId,
-                'left_c': int(gap_values[0]),
-                'left_b': int(gap_values[1]),
-                'left_a': int(gap_values[2]),
-                'right_a': int(gap_values[3]),
-                'right_b': int(gap_values[4]),
-                'right_c': int(gap_values[5]),
+                'right_c': int(gap_values[0]),
+                'right_b': int(gap_values[1]),
+                'right_a': int(gap_values[2]),
+                'left_a': int(gap_values[3]),
+                'left_b': int(gap_values[4]),
+                'left_c': int(gap_values[5]),
                 'sequence': play_sequence[0]
             }
             aggregated_data.append(row)
@@ -441,13 +434,13 @@ def aggregate_play_data(input_csv):
 
     aggregated_df = pd.DataFrame(aggregated_data)
 
-    aggregated_df.to_csv('data/processed/final_tracking_week_1_aggregated.csv', index=False)
+    aggregated_df.to_csv(f'data/processed/final_tracking_week_{week}_aggregated.csv', index=False)
 
     print(f"Aggregated data with gap columns has been saved.")
 
 
 #test
-sequences, gap_analysis = gap_sequencer('data/processed/organized_final_tracking_week_1.csv')
+
 
 """
 for i, sequence in enumerate(sequences[1:2], start=1):
@@ -457,16 +450,32 @@ for gap_result in gap_analysis[1:2]:
     print(f"Gap Analysis: {gap_result} \n")
 """
 
-
-before_snap_data = add_gap_info_to_before_snap('data/processed/organized_final_tracking_week_1.csv', gap_analysis)
-
-#define a list of positions to exclude
-exclude_positions = ['T', 'G', 'C', 'TE']
-
-#filter the DataFrame to exclude these positions
-before_snap_data = before_snap_data[~before_snap_data['position'].isin(exclude_positions)]
-
-before_snap_data.to_csv('data/processed/organized_final_tracking_week_1_before_snap.csv', index=False)
-
-aggregate_play_data('data/processed/organized_final_tracking_week_1_before_snap.csv')
-
+# Iterate through weeks 1 to 9
+for week in range(1, 10):
+    # Start timing
+    start_time = time.time()
+    
+    # Construct file path for the current week
+    file_path = f'data/processed/organized_final_tracking_week_{week}.csv'
+    
+    # Generate sequences and gap analysis
+    sequences, gap_analysis = gap_sequencer(file_path)
+    
+    # Add gap info to before snap data
+    before_snap_data = add_gap_info_to_before_snap(file_path, gap_analysis)
+    
+    # Define a list of positions to exclude
+    exclude_positions = ['T', 'G', 'C', 'TE']
+    
+    # Filter the DataFrame to exclude these positions
+    before_snap_data = before_snap_data[~before_snap_data['position'].isin(exclude_positions)]
+    
+    # Save the filtered before snap data to a CSV file for the current week
+    before_snap_data.to_csv(f'data/processed/organized_final_tracking_week_{week}_before_snap.csv', index=False)
+    
+    # Aggregate play data for the current week
+    aggregate_play_data(f'data/processed/organized_final_tracking_week_{week}_before_snap.csv', week)
+    
+    # End timing and print elapsed time
+    elapsed_time = time.time() - start_time
+    print(f"Week {week} processed in {elapsed_time:.2f} seconds.")

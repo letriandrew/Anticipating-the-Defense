@@ -51,12 +51,15 @@ filtered_plays = filtered_plays.drop(columns=['playNullifiedByPenalty', 'qbKneel
 def create_final_tracking_week():
 
     #combine week 1 to 9 and flip plays in the left direction
-    for week in range(1, 2):
+    for week in range(1, 10):
         print(f"Augmenting Week {week}")
         tracking = pd.read_csv(f'data/tracking_week_{week}.csv')
 
         #120 yards is length of field including endzones... inverse x position
         tracking.loc[tracking['playDirection'] == 'left', 'x'] = 120 - tracking['x'] 
+
+        # 53.3 yards is the width of the field
+        tracking.loc[tracking['playDirection'] == 'left', 'y'] = 53.3 - tracking['y']
 
         #invert direction
         tracking.loc[tracking['playDirection'] == 'left', 'dir'] = 360 - tracking['dir']
@@ -84,7 +87,7 @@ def create_final_tracking_week():
         merged_data = merged_data[merged_data['rushLocationType'].notna()]
 
         #remove headway 
-        merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'pff_runConceptPrimary', 'pff_runPassOption', 'rushLocationType', 'absoluteYardlineNumber', 'pff_runConceptSecondary', 'club', 's', 'a','dis','o','dir', 'playDirection', 'passResult', 'yardsToGo', 'yardsGained', 'event'])
+        merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'pff_runConceptPrimary', 'pff_runPassOption', 'rushLocationType', 'absoluteYardlineNumber', 'pff_runConceptSecondary', 'club', 's', 'a','dis','o', 'dir', 'playDirection', 'passResult', 'yardsToGo', 'yardsGained', 'event'])
 
         #save to csv file
         merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)

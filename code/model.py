@@ -85,9 +85,11 @@ y_test_combined = {gap: y_test_dict[gap] for gap in gaps}
 # Define the RNN model with multiple outputs and additional tuning
 input_layer = Input(shape=(max_length, 3))  # Input shape includes nflId, x, y
 x = LSTM(256, return_sequences=True, kernel_regularizer=l2(0.001))(input_layer)  # Increased LSTM units and added L2 regularization
-x = Dropout(0.3)(x)  # Increased dropout to 0.3
-x = LSTM(128)(x)  # Increased second LSTM units
-x = Dropout(0.3)(x)  # Increased dropout
+x = Dropout(0.2)(x)  # Increased dropout
+x = LSTM(64, return_sequences=True)(x)  # Increased second LSTM units
+x = Dropout(0.5)(x)  # Increased dropout
+x = LSTM(32)(x)  # Increased third LSTM units
+x = Dropout(0.5)(x)  # Increased dropout
 
 # Create separate outputs for each gap
 outputs = [Dense(len(label_encoders[i].classes_), activation='softmax', name=gaps[i])(x) for i in range(len(gaps))]

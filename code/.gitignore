@@ -1,5 +1,6 @@
 # exclude everything
 archive/parsed_data/*
+__pycache__/*
 
 # exception to the rule
 !archive/parsed_data/*.zip*

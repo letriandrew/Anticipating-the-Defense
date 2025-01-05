@@ -3,13 +3,18 @@
 import pandas as pd
 import numpy as np
 import sys
+from pathlib import Path
 
 ## INIT #########################################################################################
 #################################################################################################
-players = pd.read_csv('data/players.csv')
+# adding to path
+abs_path = str(Path(__file__).parent.parent)
+sys.path.insert(0, abs_path)
+
+players = pd.read_csv(f'{abs_path}/data/players.csv')
 players = players[['nflId', 'position']]
 
-plays = pd.read_csv('data/plays.csv')
+plays = pd.read_csv(f'{abs_path}/data/plays.csv')
 plays = plays[[
     'gameId', 'playId', 'playDescription', 'yardsToGo', 'playNullifiedByPenalty', 'qbSpike', 'qbKneel', 'absoluteYardlineNumber', 'yardsGained',  'qbSneak',  'pff_runPassOption', 'rushLocationType', 'passResult', 'pff_runConceptPrimary', 'pff_runConceptSecondary'
 ]]
@@ -17,7 +22,7 @@ plays = plays[[
 #columns removed = 'playDescription, 'quarter', 'down', 'possessionTeam', 'defensiveTeam', 'preSnapHomeScore', 'preSnapVisitorScore', 'passResult',
 
 # distinguish between plays with pre-play MOVEMENT (not just motion) and those without 
-player_play = pd.read_csv('data/player_play.csv')
+player_play = pd.read_csv(f'{abs_path}/data/player_play.csv')
 player_play = player_play[['gameId', 'playId', 'nflId']]
 #player_play = player_play[['gameId', 'playId', 'nflId', 'inMotionAtBallSnap', 'shiftSinceLineset', 'motionSinceLineset']]
 
@@ -53,7 +58,7 @@ def create_final_tracking_week():
     #combine week 1 to 9 and flip plays in the left direction
     for week in range(1, 10):
         print(f"Augmenting Week {week}")
-        tracking = pd.read_csv(f'data/tracking_week_{week}.csv')
+        tracking = pd.read_csv(f'{abs_path}/data/tracking_week_{week}.csv')
 
         #120 yards is length of field including endzones... inverse x position
         tracking.loc[tracking['playDirection'] == 'left', 'x'] = 120 - tracking['x'] 
@@ -90,7 +95,7 @@ def create_final_tracking_week():
         merged_data = merged_data.drop(columns=['displayName', 'time', 'jerseyNumber', 'playDescription', 'pff_runConceptPrimary', 'pff_runPassOption', 'rushLocationType', 'absoluteYardlineNumber', 'pff_runConceptSecondary', 'club', 's', 'a','dis','o', 'dir', 'playDirection', 'passResult', 'yardsToGo', 'yardsGained', 'event'])
 
         #save to csv file
-        merged_data.to_csv(f'data/processed/final_tracking_week_{week}.csv', index=False)
+        merged_data.to_csv(f'{abs_path}/data/processed/final_tracking_week_{week}.csv', index=False)
 
 
         print(f"Week {week} processing complete.")

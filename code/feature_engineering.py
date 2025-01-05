@@ -3,7 +3,17 @@
 import math
 import pandas as pd
 import os 
-import time 
+import time
+from pathlib import Path
+import sys
+
+## INIT #########################################################################################
+#################################################################################################
+# adding to path
+abs_path = str(Path(__file__).parent.parent)
+sys.path.insert(0, abs_path)
+
+week_path = abs_path + '/data/processed/'
 
 ## FUNCTIONS ####################################################################################
 #################################################################################################
@@ -431,14 +441,11 @@ def aggregate_play_data(input_csv, week):
 
     aggregated_df = pd.DataFrame(aggregated_data)
 
-    aggregated_df.to_csv(f'data/processed/final_tracking_week_{week}_aggregated.csv', index=False)
+    aggregated_df.to_csv(f'{abs_path}/data/processed/final_tracking_week_{week}_aggregated.csv', index=False)
 
     print(f"Aggregated data with gap columns has been saved.")
 
-
-## MAIN #########################################################################################
-#################################################################################################
-if __name__ == "__main__":
+def feature_engineer():
     """
     for i, sequence in enumerate(sequences[1:2], start=1):
         print(f"Sequence {i}: {sequence} \n")
@@ -446,7 +453,8 @@ if __name__ == "__main__":
     for gap_result in gap_analysis[1:2]:
         print(f"Gap Analysis: {gap_result} \n")
     """
-    DEBUG = False
+
+    print("Starting feature engineering")
 
     # Iterate through weeks 1 to 9
     for week in range(1, 10):
@@ -454,13 +462,7 @@ if __name__ == "__main__":
         start_time = time.time()
         
         # Construct file path for the current week
-        file_path = f'data/processed/organized_final_tracking_week_{week}.csv'
-
-        if DEBUG:
-            if os.path.exists(file_path):
-                input = input(f'Would you like to skip this file: {file_path}? (n for NO)  ')
-                if input.strip().lower() == "n":
-                    continue
+        file_path = f'{week_path}/organized_final_tracking_week_{week}.csv'
         
         # Generate sequences and gap analysis
         sequences, gap_analysis = gap_sequencer(file_path)
@@ -475,11 +477,16 @@ if __name__ == "__main__":
         before_snap_data = before_snap_data[~before_snap_data['position'].isin(exclude_positions)]
         
         # Save the filtered before snap data to a CSV file for the current week
-        before_snap_data.to_csv(f'data/processed/organized_final_tracking_week_{week}_before_snap.csv', index=False)
+        before_snap_data.to_csv(f'{week_path}/organized_final_tracking_week_{week}_before_snap.csv', index=False)
         
         # Aggregate play data for the current week
-        aggregate_play_data(f'data/processed/organized_final_tracking_week_{week}_before_snap.csv', week)
+        aggregate_play_data(f'{week_path}/organized_final_tracking_week_{week}_before_snap.csv', week)
         
         # End timing and print elapsed time
         elapsed_time = time.time() - start_time
         print(f"Week {week} processed in {elapsed_time:.2f} seconds.")
+
+## MAIN #########################################################################################
+#################################################################################################
+if __name__ == "__main__":
+    feature_engineer()

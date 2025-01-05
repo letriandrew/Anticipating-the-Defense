@@ -7,6 +7,7 @@ import sys
 import os
 import time
 from sklearn.preprocessing import MinMaxScaler
+import re
 
 ## INIT #########################################################################################
 #################################################################################################
@@ -35,9 +36,7 @@ def organize_week(week_file):
         tracking_pd = tracking_pd.sort_values(by=['gameId','playId','frameId'])
         tracking_pd.to_csv(f'{week_path}{file_name}', index=False)
 
-## MAiN #########################################################################################
-#################################################################################################
-if __name__ == '__main__':
+def organize_data():
     print(f"Iterating over {week_path} tracking files")
     length = 0
     start_time = time.time()
@@ -45,10 +44,13 @@ if __name__ == '__main__':
     if os.path.exists(week_path):
         lst = os.listdir(week_path)
         length = len(lst)
-        print(f"Total of {length} weeks to iterate")
+        print(f"Total of {length} files to iterate")
         idx = 0
         try:
             for filename in lst:
+                if not bool(re.match(r"final_tracking_week_[1-9].csv",filename)):
+                    idx += 1
+                    continue
                 print(f"{idx}/{length}",f"{idx/length*100:.3f}","percent complete         \r",end="")
                 f = os.path.join(week_path, filename)
                 
@@ -57,11 +59,16 @@ if __name__ == '__main__':
 
         except Exception as error:
             print()
-            print("Program crashed while reading:", error)
-            exit()
+            print("Program crashed while reading:", error, " from file ", str(f))
+            sys.exit()
     else:
         print(f"Path ({week_path}) does not exist...")
     
     print(f"{length}/{length}",f"{length/length*100:.3f}","percent complete         \r",end="")
     end_time = time.time()
     print(f"\nTask took {(end_time-start_time):.3f} seconds")
+
+## MAiN #########################################################################################
+#################################################################################################
+if __name__ == '__main__':
+    organize_data()
